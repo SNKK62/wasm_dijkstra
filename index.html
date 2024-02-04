@@ -1,0 +1,92 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="index.css"/>
+    </head>
+    <body>
+        <div>
+            <span>出発駅 : </span>
+            <input type="text" id="start"/>
+        </div>
+        <div>
+            <span>到着駅 : </span>
+            <input type="text" id="goal"/>
+        </div>
+        <div><button id="btn">検索</button></div>
+        <div id="result"></div>
+    </body>
+
+    <script src="data.js"></script>
+    <script>
+        const NUM_STATIONS = 101;
+        min_weights = new Array(NUM_STATIONS+1).fill(10000);
+        prev = new Array(NUM_STATIONS+1).fill(10000);
+        var Module = {"onRuntimeInitialized": initApp};
+        var dijkstra;
+        document.querySelector('#btn').onclick = function () {
+            const start = station_names.indexOf(document.querySelector('#start').value);
+            const goal = station_names.indexOf(document.querySelector('#goal').value);
+            if (start == -1 || goal == -1) {
+                document.querySelector('#result').textContent = 'その駅は存在しません'
+                return
+            }
+            search(start, goal);
+        }
+
+        function search(start, goal) {
+            if (!dijkstra) return;
+            const weightsArray = Int32Array.from(adjs.flat());
+            const weightsnByte = weightsArray.BYTES_PER_ELEMENT;
+            const weightsSize = weightsArray.length;
+            const weightsPtr = Module._malloc(weightsSize*weightsnByte);
+            Module.HEAP32.set(weightsArray, weightsPtr/weightsnByte);
+
+            const minArray = Int32Array.from(min_weights);
+            const minnByte = minArray.BYTES_PER_ELEMENT;
+            const minSize = minArray.length;
+            const minPtr = Module._malloc(minSize*minnByte);
+            Module.HEAP32.set(minArray, minPtr/minnByte);
+
+            const prevArray = Int32Array.from(prev);
+            const prevnByte = prevArray.BYTES_PER_ELEMENT;
+            const prevSize = prevArray.length;
+            const prevPtr = Module._malloc(prevSize*prevnByte);
+            Module.HEAP32.set(prevArray, prevPtr/prevnByte);
+            var prev_output = new Int32Array(Module.HEAP32.buffer, prevPtr, NUM_STATIONS+1);
+
+
+            dijkstra(start, goal, weightsPtr, minPtr, prevPtr);
+
+            var min_output = new Int32Array(Module.HEAP32.buffer, minPtr, NUM_STATIONS+1);
+            var prev_output = new Int32Array(Module.HEAP32.buffer, prevPtr, NUM_STATIONS+1);
+
+            var result = [goal];
+            var i = goal;
+            while (i != start) {
+                i = prev_output[i];
+                result.push(i);
+            }
+
+            result = result.reverse();
+            var text = `<p>総所要時間: ${min_output[goal]}分</p><p><br></p>`
+            result.forEach((idx,i) => {
+                text+=`<p>${station_names[idx]} : ${min_output[idx]}分</p>`;
+                if (i == result.length - 1) return;
+                text += `   ↓ ${adjs[idx][result[i+1]]}分`
+            })
+            document.querySelector('#result').innerHTML = text.replace(/<p>↓<\/p>$/, '');
+
+            Module._free(weightsPtr);
+            Module._free(minPtr);
+            Module._free(prevPtr);
+        }
+        function initApp() {
+            dijkstra = Module.cwrap(
+                "dijkstra",
+                "number",
+                ["number", "number", "number", "number", "number"],
+            );
+        }
+
+    </script>
+    <script src="sample.js"></script>
+</html>
