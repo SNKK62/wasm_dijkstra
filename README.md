@@ -20,4 +20,4 @@ $ make build
 ```
 $ http-server
 ```
-[http://localhost:8080]()でアクセスできるはずです．
+[http://localhost:8080](http://localhost:8080)でアクセスできるはずです．
